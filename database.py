@@ -71,6 +71,11 @@ def load_and_validate(files):
             if col not in df.columns:
                 df[col] = val
 
+        # PMax처럼 소재(creative) 단위가 없는 리포트 대응:
+        # creative가 비어있으면 adgroup(애셋 그룹명 등)으로 대체
+        df["creative"] = df["creative"].astype(str).str.strip()
+        df.loc[df["creative"].isin(["", "nan", "0"]), "creative"] = df["adgroup"]
+
         number_cols = [
             "cost",
             "impression",
