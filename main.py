@@ -4,7 +4,7 @@ from database import load_and_validate
 st.set_page_config(page_title="마케팅 보고서 도우미", layout="wide")
 st.title("🚀 시니어 마케터의 성과 분석기")
 
-uploaded_file = st.file_uploader("엑셀 업로드", type=['xlsx'])
+uploaded_file = st.file_uploader("엑셀 업로드", type=['xlsx', 'csv']])
 
 if uploaded_file:
     try:
