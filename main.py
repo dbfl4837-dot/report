@@ -1,74 +1,114 @@
-import pandas as pd
+# main.py
+
 import streamlit as st
 from database import load_and_validate
 from gemini import get_ai_insight
+
 
 st.set_page_config(
     page_title="Performance Report",
     layout="wide"
 )
 
-st.markdown("### 📊 마케팅 성과 분석 리포트")
 
-st.info("Meta는 파일 1개, GFA는 일반 데이터 + 애드부스트 데이터 2개를 함께 업로드하세요.")
+# 제목 크기 조정
+st.markdown(
+    """
+    <style>
+    .small-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
+
+    div[data-testid="stExpander"] {
+        border-radius: 10px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+st.markdown(
+    '<div class="small-title">📊 마케팅 성과 분석 리포트</div>',
+    unsafe_allow_html=True
+)
+
 
 uploaded_files = st.file_uploader(
-    "데이터 파일 업로드 (xlsx, csv)",
+    "데이터 파일을 업로드하세요 (Meta / GFA / 애드부스트 가능)",
     type=["xlsx", "csv"],
     accept_multiple_files=True
 )
 
+
 if uploaded_files:
 
     try:
-        dfs = []
 
-        for file in uploaded_files:
-            dfs.append(load_and_validate(file))
+        df = load_and_validate(uploaded_files)
 
-        # 여러 파일 하나로 합치기
-        df = pd.concat(dfs, ignore_index=True)
+        st.success(
+            f"데이터 분석 완료 ({len(df)}개 소재)"
+        )
 
-        st.success(f"{len(uploaded_files)}개 파일 분석 완료")
 
-        # ===== 엑셀 미리보기 =====
-        with st.expander("📄 업로드 데이터 보기", expanded=False):
-
-            preview = df.copy()
-
-            # 1부터 시작하도록 변경
-            preview.index = preview.index + 1
-
-            st.dataframe(
-                preview,
-                use_container_width=True,
-                height=600
-            )
-
-        # ===== 보고서 생성 =====
-        if st.button(
-            "📊 보고서 생성",
-            use_container_width=True,
-            type="primary"
+        # 원본 데이터 접기/펼치기
+        with st.expander(
+            "📄 업로드 데이터 확인",
+            expanded=False
         ):
 
-            with st.spinner("AI가 성과를 분석하고 있습니다..."):
+            st.dataframe(
+                df,
+                use_container_width=True,
+                height=500
+            )
 
-                report = get_ai_insight(df)
 
-                st.markdown("### 생성된 보고서")
+        st.divider()
 
-                st.text_area(
-                    "",
-                    report,
-                    height=700
+
+        if st.button(
+            "📊 성과 보고서 생성",
+            type="primary",
+            use_container_width=True
+        ):
+
+            with st.spinner(
+                "성과 데이터를 분석하고 있습니다..."
+            ):
+
+                insight = get_ai_insight(df)
+
+
+            st.success(
+                "보고서 생성 완료"
+            )
+
+
+            # 결과 접기
+            with st.expander(
+                "📋 생성된 보고서",
+                expanded=True
+            ):
+
+                st.markdown(
+                    insight
                 )
 
-                st.download_button(
-                    "보고서 다운로드",
-                    report,
-                    file_name="performance_report.txt"
-                )
+
+            st.download_button(
+                label="💾 보고서 저장",
+                data=insight,
+                file_name="performance_report.txt",
+                mime="text/plain"
+            )
+
 
     except Exception as e:
-        st.error(f"데이터 처리 중 오류 발생 : {e}")
+
+        st.error(
+            f"데이터 처리 중 오류 발생: {e}"
+        )
