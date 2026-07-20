@@ -46,7 +46,11 @@ def load_and_validate(files):
             if col:
                 rename[col] = key
             else:
-                missing_fields.append(key)
+                # creative(소재명)는 PMax 등 애셋 그룹 단위 리포트에서
+                # 원래 존재하지 않을 수 있고, adgroup으로 대체되므로
+                # 진단 경고 대상에서 제외
+                if key != "creative":
+                    missing_fields.append(key)
 
         if missing_fields:
             unmatched_report[file.name] = {
@@ -175,7 +179,7 @@ def load_and_validate(files):
             + "%"
         )
 
-    # 컬럼 순서 명시적으로 고정 (CVR 포함해서 누락 없이 표시)
+    # 컬럼 순서 명시적으로 고정 (CVR이 ROAS보다 먼저 오도록)
     column_order = [
         "캠페인명",
         "광고그룹명",
@@ -187,8 +191,8 @@ def load_and_validate(files):
         "매출",
         "장바구니",
         "CTR",
-        "CVR",
         "CPA",
+        "CVR",
         "ROAS",
     ]
     display_df = display_df[column_order]
