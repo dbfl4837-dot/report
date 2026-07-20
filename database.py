@@ -10,91 +10,131 @@ def find_column(df, candidates):
     return None
 
 
-def load_and_validate(file):
-    # 파일 읽기
-    if file.name.lower().endswith(".csv"):
-        df = pd.read_csv(file)
-    else:
-        df = pd.read_excel(file)
+def load_and_validate(files):
+    dfs = []
 
-    # 컬럼 자동 매칭
-    mapping = {}
+    for file in files:
 
-    for key, candidates in COLUMN_CANDIDATES.items():
-        col = find_column(df, candidates)
-        if col:
-            mapping[key] = col
+        if file.name.endswith(".csv"):
+            df = pd.read_csv(file)
+        else:
+            df = pd.read_excel(file, engine="openpyxl")
 
-    # 표준 컬럼 생성
-    data = pd.DataFrame()
+        rename = {}
 
-    data["캠페인"] = df[mapping["campaign"]] if "campaign" in mapping else ""
-    data["광고그룹"] = df[mapping["adgroup"]] if "adgroup" in mapping else ""
-    data["소재명"] = df[mapping["creative"]] if "creative" in mapping else ""
+        for key, candidates in COLUMN_CANDIDATES.items():
+            col = find_column(df, candidates)
+            if col:
+                rename[col] = key
 
-    data["비용"] = (
-        pd.to_numeric(df[mapping["cost"]], errors="coerce").fillna(0)
-        if "cost" in mapping else 0
+        df = df.rename(columns=rename)
+
+        # 필수 컬럼 없으면 생성
+        base_cols = [
+            "campaign",
+            "adgroup",
+            "creative",
+            "cost",
+            "impression",
+            "click",
+            "purchase",
+            "revenue",
+            "atc",
+            "placement",
+            "target",
+        ]
+
+        for c in base_cols:
+            if c not in df.columns:
+                if c in ["campaign","adgroup","creative","placement","target"]:
+                    df[c] = ""
+                else:
+                    df[c] = 0
+
+        # 숫자형 변환
+        num_cols = [
+            "cost",
+            "impression",
+            "click",
+            "purchase",
+            "revenue",
+            "atc"
+        ]
+
+        for c in num_cols:
+            df[c] = (
+                df[c]
+                .astype(str)
+                .str.replace(",", "", regex=False)
+                .replace("", 0)
+            )
+
+            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+
+        dfs.append(df)
+
+    ##################################################
+    ## 여러 파일 합치기 (메타 + 애드부스트 자동 합산)
+    ##################################################
+
+    df = pd.concat(dfs, ignore_index=True)
+
+    group_cols = [
+        "campaign",
+        "adgroup",
+        "creative",
+        "placement",
+        "target"
+    ]
+
+    df = (
+        df.groupby(group_cols, dropna=False, as_index=False)
+        .agg({
+            "cost":"sum",
+            "impression":"sum",
+            "click":"sum",
+            "purchase":"sum",
+            "revenue":"sum",
+            "atc":"sum"
+        })
     )
 
-    data["노출"] = (
-        pd.to_numeric(df[mapping["impression"]], errors="coerce").fillna(0)
-        if "impression" in mapping else 0
-    )
+    #########################################
+    # 계산
+    #########################################
 
-    data["클릭"] = (
-        pd.to_numeric(df[mapping["click"]], errors="coerce").fillna(0)
-        if "click" in mapping else 0
-    )
-
-    data["구매"] = (
-        pd.to_numeric(df[mapping["purchase"]], errors="coerce").fillna(0)
-        if "purchase" in mapping else 0
-    )
-
-    data["매출"] = (
-        pd.to_numeric(df[mapping["revenue"]], errors="coerce").fillna(0)
-        if "revenue" in mapping else 0
-    )
-
-    data["장바구니"] = (
-        pd.to_numeric(df[mapping["atc"]], errors="coerce").fillna(0)
-        if "atc" in mapping else 0
-    )
-
-    data["타겟"] = df[mapping["target"]] if "target" in mapping else ""
-    data["지면"] = df[mapping["placement"]] if "placement" in mapping else ""
-
-    # ===== 자동 계산 =====
-
-    data["CTR"] = np.where(
-        data["노출"] > 0,
-        data["클릭"] / data["노출"] * 100,
+    df["CTR"] = np.where(
+        df["impression"] > 0,
+        df["click"] / df["impression"] * 100,
         0
     )
 
-    data["CVR"] = np.where(
-        data["클릭"] > 0,
-        data["구매"] / data["클릭"] * 100,
+    df["CVR"] = np.where(
+        df["click"] > 0,
+        df["purchase"] / df["click"] * 100,
         0
     )
 
-    data["CPC"] = np.where(
-        data["클릭"] > 0,
-        data["비용"] / data["클릭"],
+    df["CPA"] = np.where(
+        df["purchase"] > 0,
+        df["cost"] / df["purchase"],
         0
     )
 
-    data["CPA"] = np.where(
-        data["구매"] > 0,
-        data["비용"] / data["구매"],
+    df["ROAS"] = np.where(
+        df["cost"] > 0,
+        df["revenue"] / df["cost"] * 100,
         0
     )
 
-    data["ROAS"] = np.where(
-        data["비용"] > 0,
-        data["매출"] / data["비용"] * 100,
-        0
-    )
+    #########################################
+    # 보기 좋게
+    #########################################
 
-    return data
+    df = df.sort_values("cost", ascending=False)
+
+    df = df.reset_index(drop=True)
+
+    df.index = df.index + 1
+
+    return df
