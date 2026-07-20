@@ -3,7 +3,7 @@ from database import load_and_validate
 from gemini import get_ai_insight
 
 st.set_page_config(page_title="Performance Report", layout="wide")
-st.title("📊 마케팅 성과 분석 리포트") # 제목 수정
+st.title("### 📊 마케팅 성과 분석 리포트") # 제목 수정
 
 uploaded_file = st.file_uploader("데이터 파일을 업로드하세요 (xlsx, csv)", type=['xlsx', 'csv'])
 
@@ -14,8 +14,7 @@ if uploaded_file is not None:
         st.success("데이터 분석 완료!")
         
         # 데이터 미리보기 (로딩 확인용)
-        st.dataframe(df.head(5))
-        
+        st.dataframe(df, use_container_width=True, height=600)        
         if st.button("보고서 생성"):
             with st.spinner('분석 중...'):
                 insight = get_ai_insight(df)

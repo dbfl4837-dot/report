@@ -1,38 +1,100 @@
 import pandas as pd
 import numpy as np
-from models import REQUIRED_COLUMNS
+from models import COLUMN_CANDIDATES
+
+
+def find_column(df, candidates):
+    for c in candidates:
+        if c in df.columns:
+            return c
+    return None
+
 
 def load_and_validate(file):
-    if file.name.endswith('.csv'):
+    # 파일 읽기
+    if file.name.lower().endswith(".csv"):
         df = pd.read_csv(file)
     else:
-        df = pd.read_excel(file, engine='openpyxl')
-    
-    # 1. 컬럼 이름 매핑 (있는 것만 매핑)
-    mapping = {
-        '광고 소재 이름': '광고 이름',
-        '광고 그룹 이름': '광고 세트 이름',
-        '총비용': '지출 금액 (KRW)',
-        '노출수': '노출',
-        '구매완료 수': '구매',
-        '구매완료 전환매출액': '구매 전환값',
-        '클릭률(%)': 'CTR(전체)',
-        '평균 CPC': 'CPC(링크 클릭당 비용)',
-        '구매완료 광고수익률(%)': '구매 ROAS(광고 지출 대비 수익률)'
-    }
-    df = df.rename(columns=mapping)
-    
-    # 2. 필수 데이터가 없으면 자동으로 계산
-    # '링크 클릭당 구매율' 계산 (구매 / 클릭수) -> 클릭수 데이터 없으면 0 처리
-    if '링크 클릭당 구매율' not in df.columns:
-        df['링크 클릭당 구매율'] = np.where(df['구매'] > 0, (df['구매'] / df['구매'].sum()) * 100, 0) # 예시 로직
-        
-    # '구매당 비용' 계산 (지출 / 구매)
-    if '구매당 비용' not in df.columns:
-        df['구매당 비용'] = np.where(df['구매'] > 0, df['지출 금액 (KRW)'] / df['구매'], 0)
-        
-    # '구매 ROAS' 계산 (매출 / 지출)
-    if '구매 ROAS(광고 지출 대비 수익률)' not in df.columns:
-        df['구매 ROAS(광고 지출 대비 수익률)'] = np.where(df['지출 금액 (KRW)'] > 0, df['구매 전환값'] / df['지출 금액 (KRW)'], 0)
+        df = pd.read_excel(file)
 
-    return df
+    # 컬럼 자동 매칭
+    mapping = {}
+
+    for key, candidates in COLUMN_CANDIDATES.items():
+        col = find_column(df, candidates)
+        if col:
+            mapping[key] = col
+
+    # 표준 컬럼 생성
+    data = pd.DataFrame()
+
+    data["캠페인"] = df[mapping["campaign"]] if "campaign" in mapping else ""
+    data["광고그룹"] = df[mapping["adgroup"]] if "adgroup" in mapping else ""
+    data["소재명"] = df[mapping["creative"]] if "creative" in mapping else ""
+
+    data["비용"] = (
+        pd.to_numeric(df[mapping["cost"]], errors="coerce").fillna(0)
+        if "cost" in mapping else 0
+    )
+
+    data["노출"] = (
+        pd.to_numeric(df[mapping["impression"]], errors="coerce").fillna(0)
+        if "impression" in mapping else 0
+    )
+
+    data["클릭"] = (
+        pd.to_numeric(df[mapping["click"]], errors="coerce").fillna(0)
+        if "click" in mapping else 0
+    )
+
+    data["구매"] = (
+        pd.to_numeric(df[mapping["purchase"]], errors="coerce").fillna(0)
+        if "purchase" in mapping else 0
+    )
+
+    data["매출"] = (
+        pd.to_numeric(df[mapping["revenue"]], errors="coerce").fillna(0)
+        if "revenue" in mapping else 0
+    )
+
+    data["장바구니"] = (
+        pd.to_numeric(df[mapping["atc"]], errors="coerce").fillna(0)
+        if "atc" in mapping else 0
+    )
+
+    data["타겟"] = df[mapping["target"]] if "target" in mapping else ""
+    data["지면"] = df[mapping["placement"]] if "placement" in mapping else ""
+
+    # ===== 자동 계산 =====
+
+    data["CTR"] = np.where(
+        data["노출"] > 0,
+        data["클릭"] / data["노출"] * 100,
+        0
+    )
+
+    data["CVR"] = np.where(
+        data["클릭"] > 0,
+        data["구매"] / data["클릭"] * 100,
+        0
+    )
+
+    data["CPC"] = np.where(
+        data["클릭"] > 0,
+        data["비용"] / data["클릭"],
+        0
+    )
+
+    data["CPA"] = np.where(
+        data["구매"] > 0,
+        data["비용"] / data["구매"],
+        0
+    )
+
+    data["ROAS"] = np.where(
+        data["비용"] > 0,
+        data["매출"] / data["비용"] * 100,
+        0
+    )
+
+    return data
