@@ -1,9 +1,15 @@
 import pandas as pd
+from models import REQUIRED_COLUMNS
 
 def load_and_validate(file):
-    df = pd.read_excel(file)
+    # 확장자에 따른 파일 로드 및 엔진 명시
+    if file.name.endswith('.csv'):
+        df = pd.read_csv(file)
+    else:
+        # engine='openpyxl'을 추가하여 오류 해결
+        df = pd.read_excel(file, engine='openpyxl')
     
-    # 엑셀의 실제 컬럼명을 프로그램이 쓰는 이름으로 바꾸기 (매핑)
+    # 엑셀 컬럼 이름 매핑
     mapping = {
         '광고 소재 이름': '광고 이름',
         '광고 그룹 이름': '광고 세트 이름',
@@ -17,11 +23,8 @@ def load_and_validate(file):
     }
     df = df.rename(columns=mapping)
     
-    # 이제 필요한 컬럼이 다 있는지 확인
-    required = ['광고 세트 이름', '광고 이름', '지출 금액 (KRW)', '구매', '구매 전환값', '노출']
-    missing = [c for c in required if c not in df.columns]
-    
+    # 필수 컬럼 확인
+    missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing:
         raise ValueError(f"필수 데이터가 없습니다: {missing}")
-    
     return df
