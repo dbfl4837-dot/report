@@ -2,7 +2,7 @@
 
 COLUMN_CANDIDATES = {
 
-    # 캠페인
+    # 캠페인명
     "campaign": [
         "캠페인 이름",
         "Campaign",
@@ -10,23 +10,28 @@ COLUMN_CANDIDATES = {
         "캠페인"
     ],
 
-    # 광고세트
+
+    # 광고그룹명
     "adgroup": [
         "광고 세트 이름",
         "광고그룹 이름",
         "광고그룹",
         "Ad Set",
-        "Ad Set Name"
+        "Ad Set Name",
+        "광고그룹명"
     ],
 
-    # 소재
+
+    # 소재명
     "creative": [
         "광고 이름",
         "광고 소재 이름",
         "소재명",
         "Creative",
-        "Ad Name"
+        "Ad Name",
+        "광고명"
     ],
+
 
     # 비용
     "cost": [
@@ -35,63 +40,65 @@ COLUMN_CANDIDATES = {
         "광고비",
         "비용",
         "Spend",
-        "Cost"
+        "Cost",
+        "사용 금액"
     ],
+
 
     # 노출
     "impression": [
         "노출",
         "노출수",
-        "Impressions"
+        "Impressions",
+        "노출수(회)"
     ],
+
 
     # 클릭
     "click": [
         "링크 클릭",
+        "링크 클릭수",
         "클릭",
         "클릭수",
-        "링크 클릭수",
-        "Clicks"
+        "Clicks",
+        "Link Clicks"
     ],
+
 
     # 구매
     "purchase": [
         "구매",
         "구매완료 수",
+        "구매완료",
         "Purchase",
-        "Purchases"
+        "Purchases",
+        "전환수"
     ],
+
 
     # 매출
     "revenue": [
-        "구매 전환값",
         "구매완료 전환매출액",
+        "구매완료 전환값",
+        "구매 전환값",
         "전환매출액",
         "매출",
         "Revenue",
-        "Purchase Value"
+        "Purchase Value",
+        "전환 가치"
     ],
+
 
     # 장바구니
     "atc": [
         "장바구니",
         "장바구니 추가",
+        "장바구니 추가 수",
+        "장바구니추가",
         "AddToCart",
-        "장바구니 담기"
-    ],
-
-    # 지면
-    "placement": [
-        "지면",
-        "게재 위치",
-        "Placement"
-    ],
-
-    # 타겟
-    "target": [
-        "타겟",
-        "타겟명",
-        "Audience",
-        "광고세트"
+        "Add to cart",
+        "장바구니 담기",
+        "장바구니 수"
     ]
+
 }

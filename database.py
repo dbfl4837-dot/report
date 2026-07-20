@@ -1,76 +1,68 @@
-# database.py
-
 import pandas as pd
 import numpy as np
 from models import COLUMN_CANDIDATES
 
 
 def find_column(df, candidates):
-    for col in candidates:
-        if col in df.columns:
-            return col
+    for c in candidates:
+        if c in df.columns:
+            return c
     return None
 
 
 def load_and_validate(files):
 
-    dataframes = []
+    dfs = []
 
-    # 파일 여러 개 처리
+
     for file in files:
 
         if file.name.endswith(".csv"):
             df = pd.read_csv(file)
         else:
-            df = pd.read_excel(
-                file,
-                engine="openpyxl"
-            )
+            df = pd.read_excel(file)
 
-        rename_map = {}
 
-        # 컬럼 자동 매칭
+        rename = {}
+
+
         for key, candidates in COLUMN_CANDIDATES.items():
 
-            found = find_column(
+            col = find_column(
                 df,
                 candidates
             )
 
-            if found:
-                rename_map[found] = key
+            if col:
+                rename[col] = key
 
 
-        df = df.rename(
-            columns=rename_map
-        )
+        df = df.rename(columns=rename)
 
 
-        # 없는 컬럼 생성
-        default_columns = {
-            "campaign": "",
-            "adgroup": "",
-            "creative": "",
-            "cost": 0,
-            "impression": 0,
-            "click": 0,
-            "purchase": 0,
-            "revenue": 0,
-            "atc": 0,
-            "placement": "",
-            "target": ""
+        default = {
+
+            "campaign":"",
+            "adgroup":"",
+            "creative":"",
+            "cost":0,
+            "impression":0,
+            "click":0,
+            "purchase":0,
+            "revenue":0,
+            "atc":0
+
         }
 
 
-        for col, default in default_columns.items():
+        for col,val in default.items():
 
             if col not in df.columns:
-                df[col] = default
+                df[col] = val
 
 
 
-        # 숫자 변환
-        numeric_columns = [
+        number_cols = [
             "cost",
             "impression",
             "click",
@@ -80,16 +72,12 @@ def load_and_validate(files):
         ]
 
 
-        for col in numeric_columns:
+        for col in number_cols:
 
             df[col] = (
                 df[col]
                 .astype(str)
-                .str.replace(
-                    ",",
-                    "",
-                    regex=False
-                )
+                .str.replace(",","")
             )
 
             df[col] = pd.to_numeric(
@@ -99,125 +87,145 @@ def load_and_validate(files):
 
 
 
-        dataframes.append(df)
+        dfs.append(df)
 
 
 
-    # 여러 파일 합치기
     df = pd.concat(
-        dataframes,
+        dfs,
         ignore_index=True
     )
 
 
-    # 동일 소재/캠페인 데이터 합산
-    group_columns = [
-        "campaign",
-        "adgroup",
-        "creative",
-        "placement",
-        "target"
-    ]
 
+    # 소재 기준 데이터 통합
 
     df = (
         df
         .groupby(
-            group_columns,
-            dropna=False,
+            [
+                "campaign",
+                "adgroup",
+                "creative"
+            ],
             as_index=False
         )
-        .agg(
-            {
-                "cost": "sum",
-                "impression": "sum",
-                "click": "sum",
-                "purchase": "sum",
-                "revenue": "sum",
-                "atc": "sum"
-            }
-        )
+        .agg({
+
+            "cost":"sum",
+            "impression":"sum",
+            "click":"sum",
+            "purchase":"sum",
+            "revenue":"sum",
+            "atc":"sum"
+
+        })
     )
 
 
 
-    # 성과 지표 자동 계산
+    # 성과 계산
 
     df["CTR"] = np.where(
-        df["impression"] > 0,
-        df["click"]
-        /
-        df["impression"]
-        *
-        100,
+        df["impression"]>0,
+        df["click"]/df["impression"]*100,
         0
     )
 
 
     df["CVR"] = np.where(
-        df["click"] > 0,
-        df["purchase"]
-        /
-        df["click"]
-        *
-        100,
+        df["click"]>0,
+        df["purchase"]/df["click"]*100,
         0
     )
 
 
     df["CPA"] = np.where(
-        df["purchase"] > 0,
-        df["cost"]
-        /
-        df["purchase"],
+        df["purchase"]>0,
+        df["cost"]/df["purchase"],
         0
     )
 
 
     df["ROAS"] = np.where(
-        df["cost"] > 0,
-        df["revenue"]
-        /
-        df["cost"]
-        *
-        100,
+        df["cost"]>0,
+        df["revenue"]/df["cost"]*100,
         0
     )
 
 
 
-    # AI 전달용 컬럼명 변경
+    # AI 전달용 컬럼
+
     df = df.rename(
         columns={
-            "campaign": "캠페인명",
-            "adgroup": "광고그룹명",
-            "creative": "소재명",
-            "cost": "비용",
-            "impression": "노출",
-            "click": "클릭",
-            "purchase": "구매",
-            "revenue": "매출",
-            "atc": "장바구니",
-            "CTR": "CTR(%)",
-            "CVR": "CVR(%)",
-            "CPA": "CPA",
-            "ROAS": "ROAS(%)"
+
+            "campaign":"캠페인명",
+            "adgroup":"광고그룹명",
+            "creative":"소재명",
+            "cost":"비용",
+            "impression":"노출",
+            "click":"클릭",
+            "purchase":"구매",
+            "revenue":"매출",
+            "atc":"장바구니",
+            "CTR":"CTR",
+            "CVR":"CVR",
+            "CPA":"CPA",
+            "ROAS":"ROAS"
+
         }
     )
 
 
-    # 비용 높은 순 정렬
+
+    # 정렬
+
     df = df.sort_values(
-        by="비용",
+        "비용",
         ascending=False
     )
 
 
-    # 엑셀처럼 1부터 표시
-    df.index = range(
+
+    # 표시용 포맷
+
+    display_df = df.copy()
+
+
+    for col in [
+        "비용",
+        "매출",
+        "CPA"
+    ]:
+
+        display_df[col] = (
+            display_df[col]
+            .round()
+            .astype(int)
+            .map("{:,}".format)
+        )
+
+
+
+    for col in [
+        "CTR",
+        "CVR",
+        "ROAS"
+    ]:
+
+        display_df[col] = (
+            display_df[col]
+            .round(2)
+            .astype(str)
+            +"%"
+        )
+
+
+    display_df.index = range(
         1,
-        len(df)+1
+        len(display_df)+1
     )
 
 
-    return df
+    return display_df
